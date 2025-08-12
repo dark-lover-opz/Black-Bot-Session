@@ -131,13 +131,13 @@ router.get('/', async (req, res) => {
                 }
             });
 
-            if (!KnightBot.authState.creds.registered) {
+            if (!BlackBot.authState.creds.registered) {
                 await delay(3000); // Wait 3 seconds before requesting pairing code
                 num = num.replace(/[^\d+]/g, '');
                 if (num.startsWith('+')) num = num.substring(1);
 
                 try {
-                    let code = await KnightBot.requestPairingCode(num);
+                    let code = await BlackBot.requestPairingCode(num);
                     code = code?.match(/.{1,4}/g)?.join('-') || code;
                     if (!res.headersSent) {
                         console.log({ num, code });
@@ -151,7 +151,7 @@ router.get('/', async (req, res) => {
                 }
             }
 
-            KnightBot.ev.on('creds.update', saveCreds);
+            BlackBot.ev.on('creds.update', saveCreds);
         } catch (err) {
             console.error('Error initializing session:', err);
             if (!res.headersSent) {
