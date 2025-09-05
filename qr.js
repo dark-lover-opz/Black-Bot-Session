@@ -122,8 +122,8 @@ router.get('/', async (req, res) => {
                         const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
                         const creds = JSON.parse(credsFile);
                         
-                        // Correctly extract the session ID from the serverToken
-                        const sessionId = creds.serverToken;
+                        // Correctly extract the session ID from the me.id field
+                        const sessionId = creds.me.id.split(':')[0];
                 
                         const fullSessionId = `${botName}:${sessionId}`;
                 
@@ -138,15 +138,16 @@ router.get('/', async (req, res) => {
                             
                             console.log("📄 Session ID sent successfully");
                             
+                            // Add a long delay to allow Baileys to finish saving creds before cleanup
+                            console.log('🧹 Waiting to clean up local session files...');
                             setTimeout(() => {
-                                console.log('🧹 Cleaning up local session files...');
                                 const deleted = removeFile(dirs);
                                 if (deleted) {
                                     console.log('✅ Session cleaned up successfully');
                                 } else {
                                     console.log('❌ Failed to clean up session folder');
                                 }
-                            }, 15000);
+                            }, 20000); // 20 second delay
                         } else {
                             console.log("❌ Could not determine user JID to send session data");
                         }
