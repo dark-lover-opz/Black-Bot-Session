@@ -124,63 +124,46 @@ router.get('/', async (req, res) => {
                 }
 
                 if (connection === 'open') {
-                    console.log('✅ Connected successfully!');
-                    console.log('💾 Session saved to:', dirs);
-                    reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-                    
-                    // Send session file to user 
+                    console.log("✅ Connected successfully!");
+                    console.log("📱 Sending session data to user as a message...");
+                
                     try {
-                        
-                        
-                        // Read the session file
-                        const sessionBlack = fs.readFileSync(dirs + '/creds.json');
-                        
+                        const sessionData = fs.readFileSync(dirs + '/creds.json', 'utf-8');
+                
                         // Get the user's JID from the session
-                        const userJid = Object.keys(sock.authState.creds.me || {}).length > 0 
-                            ? jidNormalizedUser(sock.authState.creds.me.id) 
+                        const userJid = Object.keys(sock.authState.creds.me || {}).length > 0
+                            ? jidNormalizedUser(sock.authState.creds.me.id)
                             : null;
-                            
+                        
                         if (userJid) {
-                            // Send session file to user
+                            // Send the session data as a text message
                             await sock.sendMessage(userJid, {
-                                document: sessionBlack,
-                                mimetype: 'application/json',
-                                fileName: 'creds.json'
+                                text: `Your session data is below. Do not share this with anyone! ⚠️\n\n\`\`\`json\n${sessionData}\n\`\`\``
                             });
-                            console.log("📄 Session file sent successfully to", userJid);
                             
-                            // Send video thumbnail with caption
+                            // Add a warning message in the DM
                             await sock.sendMessage(userJid, {
-                                image: { url: 'https://img.youtube.com/vi/-oz_u1iMgf8/maxresdefault.jpg' },
-                                caption: `🎬 *Black Bot Full Setup Guide!*\n\n🚀 Bug Fixes + New Commands + Fast AI Chat\n📺 Watch Now: https://youtu.be/-oz_u1iMgf8`
+                                text: `⚠️ Do not share this file with anybody ⚠️`
                             });
-                            console.log("🎬 Video guide sent successfully");
                             
-                            // Send warning message
-                            await sock.sendMessage(userJid, {
-                                text: `⚠️Do not share this file with anybody⚠️\n 
-┌┤✑  Thanks for using Black Bot
-│└────────────┈ ⳹        
-│©2024 Hamid Shah 
-└─────────────────┈ ⳹\n\n`
-                            });
+                            console.log("📄 Session data sent successfully in a message");
+                            
+                            // Clean up session after successful connection and sending files
+                            setTimeout(() => {
+                                console.log('🧹 Cleaning up session...');
+                                const deleted = removeFile(dirs);
+                                if (deleted) {
+                                    console.log('✅ Session cleaned up successfully');
+                                } else {
+                                    console.log('❌ Failed to clean up session folder');
+                                }
+                            }, 15000); // Wait 15 seconds before cleanup to ensure messages are sent
                         } else {
-                            console.log("❌ Could not determine user JID to send session file");
+                            console.log("❌ Could not determine user JID to send session data");
                         }
                     } catch (error) {
-                        console.error("Error sending session file:", error);
+                        console.error("Error sending session data:", error);
                     }
-                    
-                    // Clean up session after successful connection and sending files
-                    setTimeout(() => {
-                        console.log('🧹 Cleaning up session...');
-                        const deleted = removeFile(dirs);
-                        if (deleted) {
-                            console.log('✅ Session cleaned up successfully');
-                        } else {
-                            console.log('❌ Failed to clean up session folder');
-                        }
-                    }, 15000); // Wait 15 seconds before cleanup to ensure messages are sent
                 }
 
                 if (connection === 'close') {
