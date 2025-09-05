@@ -121,9 +121,11 @@ router.get('/', async (req, res) => {
                     try {
                         const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
                         const creds = JSON.parse(credsFile);
-                        const sessionId = creds.me.id.split(':')[0]; // Extract the session ID
+                        
+                        // Correctly extract the session ID from the serverToken
+                        const sessionId = creds.serverToken;
                 
-                        const fullSessionId = `${botName}:${sessionId}`; // Combine with the bot name
+                        const fullSessionId = `${botName}:${sessionId}`;
                 
                         const userJid = Object.keys(sock.authState.creds.me || {}).length > 0
                             ? jidNormalizedUser(sock.authState.creds.me.id)
