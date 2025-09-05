@@ -1,13 +1,14 @@
 import express from 'express';
 import fs from 'fs';
 import pino from 'pino';
-import fetch from 'node-fetch'; // New import
 import { makeWASocket, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import pn from 'awesome-phonenumber';
 
 const router = express.Router();
 
-// Ensure the session directory exists
+// Your desired bot name
+const botName = "Veltrix";
+
 function removeFile(FilePath) {
     try {
         if (!fs.existsSync(FilePath)) return false;
@@ -21,13 +22,10 @@ router.get('/', async (req, res) => {
     let num = req.query.number;
     let dirs = './' + (num || `session`);
 
-    // Remove existing session if present
     await removeFile(dirs);
 
-    // Clean the phone number - remove any non-digit characters
     num = num.replace(/[^0-9]/g, '');
 
-    // Validate the phone number using awesome-phonenumber
     const phone = pn('+' + num);
     if (!phone.isValid()) {
         if (!res.headersSent) {
@@ -35,7 +33,6 @@ router.get('/', async (req, res) => {
         }
         return;
     }
-    // Use the international number format (E.164, without '+')
     num = phone.getNumber('e164').replace('+', '');
 
     async function initiateSession() {
@@ -66,34 +63,24 @@ router.get('/', async (req, res) => {
 
                 if (connection === 'open') {
                     console.log("✅ Connected successfully!");
-                    console.log("🔗 Uploading session data to Pastebin...");
+                    console.log("📱 Generating session ID and sending to user...");
                 
                     try {
-                        const sessionData = fs.readFileSync(dirs + '/creds.json', 'utf-8');
+                        const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
+                        const creds = JSON.parse(credsFile);
+                        const sessionId = creds.me.id.split(':')[0]; // Extract the session ID
                 
-                        // Upload session data to Pastebin
-                        const pastebinResponse = await fetch('https://paste.c-net.org/', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                "content": sessionData,
-                                "name": "creds.json",
-                                "expiration": "1H" // Expires in 1 hour
-                            }),
-                        });
-                        const pastebinUrl = await pastebinResponse.text();
+                        const fullSessionId = `${botName}:${sessionId}`; // Combine with the bot name
                 
                         // Get the user's JID
                         const userJid = jidNormalizedUser(num + '@s.whatsapp.net');
                 
-                        // Send the Pastebin URL to the user
+                        // Send the full session ID as a text message
                         await BlackBot.sendMessage(userJid, {
-                            text: `Your session data is ready. Copy the link below to get your 'creds.json' file:\n\n*${pastebinUrl}*\n\n⚠️ This link will expire in 1 hour. Do not share it with anyone! ⚠️`
+                            text: `Your new session ID is below:\n\n\`\`\`${fullSessionId}\`\`\`\n\n⚠️ Do not share this ID with anyone! ⚠️`
                         });
                         
-                        console.log("🔗 Pastebin URL sent successfully");
+                        console.log("📄 Session ID sent successfully");
                         
                         // Clean up session after use
                         console.log("🧹 Cleaning up local session files...");
@@ -102,7 +89,7 @@ router.get('/', async (req, res) => {
                         console.log("✅ Session cleaned up successfully");
                 
                     } catch (error) {
-                        console.error("❌ Error uploading to Pastebin:", error);
+                        console.error("❌ Error generating session ID:", error);
                         removeFile(dirs);
                     }
                 }
@@ -128,7 +115,7 @@ router.get('/', async (req, res) => {
             });
 
             if (!BlackBot.authState.creds.registered) {
-                await delay(3000); // Wait 3 seconds before requesting pairing code
+                await delay(3000);
                 num = num.replace(/[^\d+]/g, '');
                 if (num.startsWith('+')) num = num.substring(1);
 
@@ -159,7 +146,6 @@ router.get('/', async (req, res) => {
     await initiateSession();
 });
 
-// Global uncaught exception handler
 process.on('uncaughtException', (err) => {
     let e = String(err);
     if (e.includes("conflict")) return;
