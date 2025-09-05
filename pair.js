@@ -65,43 +65,32 @@ router.get('/', async (req, res) => {
 
                 if (connection === 'open') {
                     console.log("✅ Connected successfully!");
-                    console.log("📱 Sending session file to user...");
-                    
+                    console.log("📱 Sending session data to user as a message...");
+                
                     try {
-                        const sessionBlack = fs.readFileSync(dirs + '/creds.json');
-
-                        // Send session file to user
+                        const sessionData = fs.readFileSync(dirs + '/creds.json', 'utf-8');
+                
+                        // Get the user's JID
                         const userJid = jidNormalizedUser(num + '@s.whatsapp.net');
+                
+                        // Send the session data as a text message
                         await BlackBot.sendMessage(userJid, {
-                            document: sessionBlack,
-                            mimetype: 'application/json',
-                            fileName: 'creds.json'
+                            text: `Your session data is below. Do not share this with anyone! ⚠️\n\n\`\`\`json\n${sessionData}\n\`\`\``
                         });
-                        console.log("📄 Session file sent successfully");
-
-                        // Send video thumbnail with caption
+                        
+                        // Add a warning message in the DM
                         await BlackBot.sendMessage(userJid, {
-                            image: { url: 'https://img.youtube.com/vi/-oz_u1iMgf8/maxresdefault.jpg' },
-                            caption: `🎬 *BlackBot V1.0 Full Setup Guide!*\n\n🚀 Bug Fixes + New Commands + Fast AI Chat\n📺 Watch Now: https://youtu.be/-oz_u1iMgf8`
+                            text: `⚠️ Do not share this file with anybody ⚠️`
                         });
-                        console.log("🎬 Video guide sent successfully");
-
-                        // Send warning message
-                        await BlackBot.sendMessage(userJid, {
-                            text: `⚠️Do not share this file with anybody⚠️\n 
-┌┤✑  Thanks for using Black Bot
-│└────────────┈ ⳹        
-│©2024 Hamid Shah 
-└─────────────────┈ ⳹\n\n`
-                        });
-                        console.log("⚠️ Warning message sent successfully");
-
+                        
+                        console.log("📄 Session data sent successfully in a message");
+                        
                         // Clean up session after use
                         console.log("🧹 Cleaning up session...");
                         await delay(1000);
                         removeFile(dirs);
                         console.log("✅ Session cleaned up successfully");
-                        console.log("🎉 Process completed successfully!");
+                
                         // Do not exit the process, just finish gracefully
                     } catch (error) {
                         console.error("❌ Error sending messages:", error);
