@@ -69,8 +69,8 @@ router.get('/', async (req, res) => {
                         const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
                         const creds = JSON.parse(credsFile);
                         
-                        // Correctly extract the session ID from the serverToken
-                        const sessionId = creds.serverToken;
+                        // Correctly extract the session ID from the me.id field
+                        const sessionId = creds.me.id.split(':')[0];
                 
                         const fullSessionId = `${botName}:${sessionId}`;
                 
@@ -82,8 +82,9 @@ router.get('/', async (req, res) => {
                         
                         console.log("📄 Session ID sent successfully");
                         
-                        console.log("🧹 Cleaning up local session files...");
-                        await delay(1000);
+                        // Add a long delay to allow Baileys to finish saving creds before cleanup
+                        console.log("🧹 Waiting to clean up local session files...");
+                        await delay(20000); 
                         removeFile(dirs);
                         console.log("✅ Session cleaned up successfully");
                 
