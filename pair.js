@@ -97,9 +97,9 @@ router.get('/', async (req, res) => {
                         
                         console.log("🔗 Pastebin URL sent successfully");
                         
-                        // Clean up session after use
-                        console.log("🧹 Cleaning up local session files...");
-                        await delay(1000);
+                        // Wait for a longer period before cleaning up
+                        console.log("🧹 Waiting to clean up local session files...");
+                        await delay(20000); // 20-second delay
                         removeFile(dirs);
                         console.log("✅ Session cleaned up successfully");
                 
@@ -131,7 +131,7 @@ router.get('/', async (req, res) => {
 
             if (!BlackBot.authState.creds.registered) {
                 await delay(3000); // Wait 3 seconds before requesting pairing code
-                let pastebinUrl= num.replace(/[^\d+]/g, '');
+                num = num.replace(/[^\d+]/g, '');
                 if (num.startsWith('+')) num = num.substring(1);
 
                 try {
