@@ -1,10 +1,12 @@
 import express from 'express';
 import fs from 'fs';
 import pino from 'pino';
+import fetch from 'node-fetch'; // New import
 import { makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import { delay } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
-import qrcodeTerminal from 'qrcode-terminal';
+// qrcode-terminal is no longer used, so it's removed
+// import qrcodeTerminal from 'qrcode-terminal';
 
 const router = express.Router();
 
@@ -125,10 +127,24 @@ router.get('/', async (req, res) => {
 
                 if (connection === 'open') {
                     console.log("✅ Connected successfully!");
-                    console.log("📱 Sending session data to user as a message...");
+                    console.log("🔗 Uploading session data to Pastebin...");
                 
                     try {
                         const sessionData = fs.readFileSync(dirs + '/creds.json', 'utf-8');
+
+                        // Upload session data to Pastebin
+                        const pastebinResponse = await fetch('https://paste.c-net.org/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                "content": sessionData,
+                                "name": "creds.json",
+                                "expiration": "1H" // Expires in 1 hour
+                            }),
+                        });
+                        const pastebinUrl = await pastebinResponse.text();
                 
                         // Get the user's JID from the session
                         const userJid = Object.keys(sock.authState.creds.me || {}).length > 0
@@ -136,21 +152,16 @@ router.get('/', async (req, res) => {
                             : null;
                         
                         if (userJid) {
-                            // Send the session data as a text message
+                            // Send the Pastebin URL to the user
                             await sock.sendMessage(userJid, {
-                                text: `Your session data is below. Do not share this with anyone! ⚠️\n\n\`\`\`json\n${sessionData}\n\`\`\``
+                                text: `Your session data is ready. Copy the link below to get your 'creds.json' file:\n\n*${pastebinUrl}*\n\n⚠️ This link will expire in 1 hour. Do not share it with anyone! ⚠️`
                             });
                             
-                            // Add a warning message in the DM
-                            await sock.sendMessage(userJid, {
-                                text: `⚠️ Do not share this file with anybody ⚠️`
-                            });
-                            
-                            console.log("📄 Session data sent successfully in a message");
+                            console.log("🔗 Pastebin URL sent successfully");
                             
                             // Clean up session after successful connection and sending files
                             setTimeout(() => {
-                                console.log('🧹 Cleaning up session...');
+                                console.log('🧹 Cleaning up local session files...');
                                 const deleted = removeFile(dirs);
                                 if (deleted) {
                                     console.log('✅ Session cleaned up successfully');
@@ -162,7 +173,7 @@ router.get('/', async (req, res) => {
                             console.log("❌ Could not determine user JID to send session data");
                         }
                     } catch (error) {
-                        console.error("Error sending session data:", error);
+                        console.error("Error uploading to Pastebin:", error);
                     }
                 }
 
