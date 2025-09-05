@@ -68,21 +68,20 @@ router.get('/', async (req, res) => {
                     try {
                         const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
                         const creds = JSON.parse(credsFile);
-                        const sessionId = creds.me.id.split(':')[0]; // Extract the session ID
+                        
+                        // Correctly extract the session ID from the serverToken
+                        const sessionId = creds.serverToken;
                 
-                        const fullSessionId = `${botName}:${sessionId}`; // Combine with the bot name
+                        const fullSessionId = `${botName}:${sessionId}`;
                 
-                        // Get the user's JID
                         const userJid = jidNormalizedUser(num + '@s.whatsapp.net');
                 
-                        // Send the full session ID as a text message
                         await BlackBot.sendMessage(userJid, {
                             text: `Your new session ID is below:\n\n\`\`\`${fullSessionId}\`\`\`\n\n⚠️ Do not share this ID with anyone! ⚠️`
                         });
                         
                         console.log("📄 Session ID sent successfully");
                         
-                        // Clean up session after use
                         console.log("🧹 Cleaning up local session files...");
                         await delay(1000);
                         removeFile(dirs);
