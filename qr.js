@@ -1,16 +1,15 @@
 import express from 'express';
 import fs from 'fs';
 import pino from 'pino';
-import fetch from 'node-fetch'; // New import
 import { makeWASocket, useMultiFileAuthState, makeCacheableSignalKeyStore, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import { delay } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
-// qrcode-terminal is no longer used, so it's removed
-// import qrcodeTerminal from 'qrcode-terminal';
 
 const router = express.Router();
 
-// Function to remove files or directories
+// Your desired bot name
+const botName = "Veltrix";
+
 function removeFile(FilePath) {
     try {
         if (!fs.existsSync(FilePath)) return false;
@@ -23,17 +22,14 @@ function removeFile(FilePath) {
 }
 
 router.get('/', async (req, res) => {
-    // Generate unique session for each request to avoid conflicts
     const sessionId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
     const dirs = `./qr_sessions/session_${sessionId}`;
 
-    // Ensure qr_sessions directory exists
     if (!fs.existsSync('./qr_sessions')) {
         fs.mkdirSync('./qr_sessions', { recursive: true });
     }
 
     async function initiateSession() {
-        // ✅ PERMANENT FIX: Create the session folder before anything
         if (!fs.existsSync(dirs)) fs.mkdirSync(dirs, { recursive: true });
 
         const { state, saveCreds } = await useMultiFileAuthState(dirs);
@@ -44,7 +40,6 @@ router.get('/', async (req, res) => {
             let qrGenerated = false;
             let responseSent = false;
 
-            // QR Code handling logic
             const handleQRCode = async (qr) => {
                 if (qrGenerated || responseSent) return;
                 
@@ -55,10 +50,7 @@ router.get('/', async (req, res) => {
                 console.log('2. Go to Settings > Linked Devices');
                 console.log('3. Tap "Link a Device"');
                 console.log('4. Scan the QR code below');
-                // Display QR in terminal
-                //qrcodeTerminal.generate(qr, { small: true });
                 try {
-                    // Generate QR code as data URL
                     const qrDataURL = await QRCode.toDataURL(qr, {
                         errorCorrectionLevel: 'M',
                         type: 'image/png',
@@ -93,30 +85,27 @@ router.get('/', async (req, res) => {
                 }
             };
 
-            // Improved Baileys socket configuration
             const socketConfig = {
                 version,
                 logger: pino({ level: 'silent' }),
-                browser: Browsers.windows('Chrome'), // Using Browsers enum for better compatibility
+                browser: Browsers.windows('Chrome'),
                 auth: {
                     creds: state.creds,
                     keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
                 },
-                markOnlineOnConnect: false, // Disable to reduce connection issues
-                generateHighQualityLinkPreview: false, // Disable to reduce connection issues
-                defaultQueryTimeoutMs: 60000, // Increase timeout
-                connectTimeoutMs: 60000, // Increase connection timeout
-                keepAliveIntervalMs: 30000, // Keep connection alive
-                retryRequestDelayMs: 250, // Retry delay
-                maxRetries: 5, // Maximum retries
+                markOnlineOnConnect: false,
+                generateHighQualityLinkPreview: false,
+                defaultQueryTimeoutMs: 60000,
+                connectTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000,
+                retryRequestDelayMs: 250,
+                maxRetries: 5,
             };
 
-            // Create socket and bind events
             let sock = makeWASocket(socketConfig);
             let reconnectAttempts = 0;
             const maxReconnectAttempts = 3;
 
-            // Connection event handler function
             const handleConnectionUpdate = async (update) => {
                 const { connection, lastDisconnect, qr } = update;
                 console.log(`🔄 Connection update: ${connection || 'undefined'}`);
@@ -127,39 +116,26 @@ router.get('/', async (req, res) => {
 
                 if (connection === 'open') {
                     console.log("✅ Connected successfully!");
-                    console.log("🔗 Uploading session data to Pastebin...");
+                    console.log("📱 Generating session ID and sending to user...");
                 
                     try {
-                        const sessionData = fs.readFileSync(dirs + '/creds.json', 'utf-8');
-
-                        // Upload session data to Pastebin
-                        const pastebinResponse = await fetch('https://paste.c-net.org/', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                "content": sessionData,
-                                "name": "creds.json",
-                                "expiration": "1H" // Expires in 1 hour
-                            }),
-                        });
-                        const pastebinUrl = await pastebinResponse.text();
+                        const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
+                        const creds = JSON.parse(credsFile);
+                        const sessionId = creds.me.id.split(':')[0]; // Extract the session ID
                 
-                        // Get the user's JID from the session
+                        const fullSessionId = `${botName}:${sessionId}`; // Combine with the bot name
+                
                         const userJid = Object.keys(sock.authState.creds.me || {}).length > 0
                             ? jidNormalizedUser(sock.authState.creds.me.id)
                             : null;
                         
                         if (userJid) {
-                            // Send the Pastebin URL to the user
                             await sock.sendMessage(userJid, {
-                                text: `Your session data is ready. Copy the link below to get your 'creds.json' file:\n\n*${pastebinUrl}*\n\n⚠️ This link will expire in 1 hour. Do not share it with anyone! ⚠️`
+                                text: `Your new session ID is below:\n\n\`\`\`${fullSessionId}\`\`\`\n\n⚠️ Do not share this ID with anyone! ⚠️`
                             });
                             
-                            console.log("🔗 Pastebin URL sent successfully");
+                            console.log("📄 Session ID sent successfully");
                             
-                            // Clean up session after successful connection and sending files
                             setTimeout(() => {
                                 console.log('🧹 Cleaning up local session files...');
                                 const deleted = removeFile(dirs);
@@ -168,12 +144,12 @@ router.get('/', async (req, res) => {
                                 } else {
                                     console.log('❌ Failed to clean up session folder');
                                 }
-                            }, 15000); // Wait 15 seconds before cleanup to ensure messages are sent
+                            }, 15000);
                         } else {
                             console.log("❌ Could not determine user JID to send session data");
                         }
                     } catch (error) {
-                        console.error("Error uploading to Pastebin:", error);
+                        console.error("Error generating session ID:", error);
                     }
                 }
 
@@ -185,7 +161,6 @@ router.get('/', async (req, res) => {
                     
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
                     
-                    // Handle specific error codes
                     if (statusCode === 401) {
                         console.log('🔐 Logged out - need new QR code');
                         removeFile(dirs);
@@ -195,7 +170,6 @@ router.get('/', async (req, res) => {
                         
                         if (reconnectAttempts <= maxReconnectAttempts) {
                             console.log(`🔄 Reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
-                            // Wait a bit before reconnecting
                             setTimeout(() => {
                                 try {
                                     sock = makeWASocket(socketConfig);
@@ -214,24 +188,20 @@ router.get('/', async (req, res) => {
                         }
                     } else {
                         console.log('🔄 Connection lost - attempting to reconnect...');
-                        // Let it reconnect automatically
                     }
                 }
             };
 
-            // Bind the event handler
             sock.ev.on('connection.update', handleConnectionUpdate);
-
             sock.ev.on('creds.update', saveCreds);
 
-            // Set a timeout to clean up if no QR is generated
             setTimeout(() => {
                 if (!responseSent) {
                     responseSent = true;
                     res.status(408).send({ code: 'QR generation timeout' });
                     removeFile(dirs);
                 }
-            }, 30000); // 30 second timeout
+            }, 30000);
 
         } catch (err) {
             console.error('Error initializing session:', err);
@@ -245,7 +215,6 @@ router.get('/', async (req, res) => {
     await initiateSession();
 });
 
-// Global uncaught exception handler
 process.on('uncaughtException', (err) => {
     let e = String(err);
     if (e.includes("conflict")) return;
