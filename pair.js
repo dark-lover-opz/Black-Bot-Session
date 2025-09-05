@@ -1,13 +1,12 @@
 import express from 'express';
 import fs from 'fs';
 import pino from 'pino';
-import fetch from 'node-fetch'; // New import
+import fetch from 'node-fetch';
 import { makeWASocket, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import pn from 'awesome-phonenumber';
 
 const router = express.Router();
 
-// Ensure the session directory exists
 function removeFile(FilePath) {
     try {
         if (!fs.existsSync(FilePath)) return false;
@@ -21,13 +20,10 @@ router.get('/', async (req, res) => {
     let num = req.query.number;
     let dirs = './' + (num || `session`);
 
-    // Remove existing session if present
     await removeFile(dirs);
 
-    // Clean the phone number - remove any non-digit characters
     num = num.replace(/[^0-9]/g, '');
 
-    // Validate the phone number using awesome-phonenumber
     const phone = pn('+' + num);
     if (!phone.isValid()) {
         if (!res.headersSent) {
@@ -35,7 +31,6 @@ router.get('/', async (req, res) => {
         }
         return;
     }
-    // Use the international number format (E.164, without '+')
     num = phone.getNumber('e164').replace('+', '');
 
     async function initiateSession() {
@@ -71,7 +66,6 @@ router.get('/', async (req, res) => {
                     try {
                         const sessionData = fs.readFileSync(dirs + '/creds.json', 'utf-8');
                 
-                        // Upload session data to Pastebin
                         const pastebinResponse = await fetch('https://paste.c-net.org/', {
                             method: 'POST',
                             headers: {
@@ -80,26 +74,23 @@ router.get('/', async (req, res) => {
                             body: JSON.stringify({
                                 "content": sessionData,
                                 "name": "creds.json",
-                                "expiration": "1H" // Expires in 1 hour
+                                "expiration": "1H"
                             }),
                         });
                         const pastebinUrl = await pastebinResponse.text();
                         const SESSION = pastebinUrl.replaceAll("https://paste.c-net.org/", "");
-                        const S_ID = `Bot~${SESSION}`
+                        const S_ID = `Bot~${SESSION}`;
                 
-                        // Get the user's JID
                         const userJid = jidNormalizedUser(num + '@s.whatsapp.net');
                 
-                        // Send the Pastebin URL to the user
                         await BlackBot.sendMessage(userJid, {
                             text: `${S_ID}`
                         });
                         
                         console.log("🔗 Pastebin URL sent successfully");
                         
-                        // Wait for a longer period before cleaning up
                         console.log("🧹 Waiting to clean up local session files...");
-                        await delay(20000); // 20-second delay
+                        await delay(20000); // Increased delay
                         removeFile(dirs);
                         console.log("✅ Session cleaned up successfully");
                 
@@ -130,7 +121,7 @@ router.get('/', async (req, res) => {
             });
 
             if (!BlackBot.authState.creds.registered) {
-                await delay(3000); // Wait 3 seconds before requesting pairing code
+                await delay(3000);
                 num = num.replace(/[^\d+]/g, '');
                 if (num.startsWith('+')) num = num.substring(1);
 
@@ -161,7 +152,6 @@ router.get('/', async (req, res) => {
     await initiateSession();
 });
 
-// Global uncaught exception handler
 process.on('uncaughtException', (err) => {
     let e = String(err);
     if (e.includes("conflict")) return;
