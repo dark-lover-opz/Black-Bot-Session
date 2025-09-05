@@ -122,8 +122,8 @@ router.get('/', async (req, res) => {
                         const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
                         const creds = JSON.parse(credsFile);
                         
-                        // Correctly extract the session ID from the me.id field
-                        const sessionId = creds.me.id.split(':')[0];
+                        // Correctly extract the session ID from the noiseKey
+                        const sessionId = creds.noiseKey.slice(0, 32).toString('hex');
                 
                         const fullSessionId = `${botName}:${sessionId}`;
                 
@@ -138,7 +138,6 @@ router.get('/', async (req, res) => {
                             
                             console.log("📄 Session ID sent successfully");
                             
-                            // Add a long delay to allow Baileys to finish saving creds before cleanup
                             console.log('🧹 Waiting to clean up local session files...');
                             setTimeout(() => {
                                 const deleted = removeFile(dirs);
@@ -172,7 +171,6 @@ router.get('/', async (req, res) => {
                         reconnectAttempts++;
                         
                         if (reconnectAttempts <= maxReconnectAttempts) {
-                            console.log(`🔄 Reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
                             setTimeout(() => {
                                 try {
                                     sock = makeWASocket(socketConfig);
@@ -183,7 +181,6 @@ router.get('/', async (req, res) => {
                                 }
                             }, 2000);
                         } else {
-                            console.log('❌ Max reconnect attempts reached');
                             if (!responseSent) {
                                 responseSent = true;
                                 res.status(503).send({ code: 'Connection failed after multiple attempts' });
