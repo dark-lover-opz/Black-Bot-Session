@@ -1,11 +1,13 @@
 import express from 'express';
 import fs from 'fs';
 import pino from 'pino';
-import fetch from 'node-fetch';
 import { makeWASocket, useMultiFileAuthState, delay, makeCacheableSignalKeyStore, Browsers, jidNormalizedUser, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import pn from 'awesome-phonenumber';
 
 const router = express.Router();
+
+// Your desired bot name
+const botName = "Veltrix";
 
 function removeFile(FilePath) {
     try {
@@ -61,41 +63,32 @@ router.get('/', async (req, res) => {
 
                 if (connection === 'open') {
                     console.log("✅ Connected successfully!");
-                    console.log("🔗 Uploading session data to Pastebin...");
+                    console.log("📱 Generating session ID and sending to user...");
                 
                     try {
-                        const sessionData = fs.readFileSync(dirs + '/creds.json', 'utf-8');
+                        const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
+                        const creds = JSON.parse(credsFile);
+                        
+                        // Correctly extract the session ID from the noiseKey
+                        const sessionId = creds.noiseKey.slice(0, 32).toString('hex');
                 
-                        const pastebinResponse = await fetch('https://paste.c-net.org/', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                "content": sessionData,
-                                "name": "creds.json",
-                                "expiration": "1H"
-                            }),
-                        });
-                        const pastebinUrl = await pastebinResponse.text();
-                        const SESSION = pastebinUrl.replaceAll("https://paste.c-net.org/", "");
-                        const S_ID = `Bot~${SESSION}`;
+                        const fullSessionId = `${botName}:${sessionId}`;
                 
                         const userJid = jidNormalizedUser(num + '@s.whatsapp.net');
                 
                         await BlackBot.sendMessage(userJid, {
-                            text: `${S_ID}`
+                            text: `Your new session ID is below:\n\n\`\`\`${fullSessionId}\`\`\`\n\n⚠️ Do not share this ID with anyone! ⚠️`
                         });
                         
-                        console.log("🔗 Pastebin URL sent successfully");
+                        console.log("📄 Session ID sent successfully");
                         
                         console.log("🧹 Waiting to clean up local session files...");
-                        await delay(20000); // Increased delay
+                        await delay(20000); 
                         removeFile(dirs);
                         console.log("✅ Session cleaned up successfully");
                 
                     } catch (error) {
-                        console.error("❌ Error uploading to Pastebin:", error);
+                        console.error("❌ Error generating session ID:", error);
                         removeFile(dirs);
                     }
                 }
