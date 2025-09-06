@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
     let num = req.query.number;
     let dirs = './' + (num || `session`);
 
-    await removeFile(dirs);
+    // Removed: The problematic removeFile(dirs) call
 
     num = num.replace(/[^0-9]/g, '');
 
@@ -69,7 +69,6 @@ router.get('/', async (req, res) => {
                         const credsFile = fs.readFileSync(dirs + '/creds.json', 'utf-8');
                         const creds = JSON.parse(credsFile);
                         
-                        // Correctly extract the session ID from the noiseKey
                         const sessionId = creds.noiseKey.slice(0, 32).toString('hex');
                 
                         const fullSessionId = `${botName}:${sessionId}`;
